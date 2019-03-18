@@ -5,26 +5,26 @@ import matplotlib.pyplot as plt
 def fPC (y, yhat):
     return np.sum(y==yhat)/float(y.size)
 
-# predictors: set of predictors [[r1,c1,r2,c2], [r1,c1,r2,c2]]
+# predictors: set of predictors [[r1,c1,r2,c2], [r1,c1,r2,c2],....]
 # X: set of images
 # y: ground truths for the images
 # n: number of images to run on
 def measureAccuracyOfPredictors (predictors, X, y, n):
     # using the predictors, we see how accurate it is
-    # each feature is I[xr1c1 > xr2c2] where I[] is either 1 for true or 0 for false
     # output is the average prediction for all 5 features
     m = len(predictors)
+    # guesses based on predictors
     yhat = []
-    # TODO try and vectorize
-    for i in range(0, n):
-        smile_predict_cnt = 0
-        for j in range(0, len(predictors)):
-            r1, c1, r2, c2 = predictors[j]
-            smile_predict_cnt += (X[i][r1][c1] > X[i][r2][c2])
-        # determine smile or no smile for that image
-        yhat.append((smile_predict_cnt/float(m)) > .5)
-
+    # arrays for each different feature
+    pred_arrays = []
+    for j in range(0, len(predictors)):
+        r1, c1, r2, c2 = predictors[j]
+        pred_arrays.append(X[:n, r1, c1] > X[:n, r2, c2])
+    # sum trues for each feature, and divide by number of features and check if its above .5
+    yhat = np.sum(pred_arrays, axis=0)/float(m) > .5
+    # return accuracy
     return fPC(y[:n], yhat)
+
 
 # n: number of images to run this on
 def stepwiseRegression (trainingFaces, trainingLabels, testingFaces, testingLabels, n):
@@ -47,22 +47,31 @@ def stepwiseRegression (trainingFaces, trainingLabels, testingFaces, testingLabe
                                 best_predictor = [r1, c1, r2, c2]
                             del predictors[-1]
         predictors.append(best_predictor)
-        print('accuracy: ', max_accuracy)
+    print('Training accuracy for ', n, ' examples: ', max_accuracy)
 
+    test_acc = measureAccuracyOfPredictors(predictors, testingFaces, testingLabels, len(testingFaces))
 
+    print('Testing accuracy for ', n, ' examples: ', test_acc)
 
-    show = False
+    show = True
     if show:
         # Show an arbitrary test image in grayscale
         im = testingFaces[0,:,:]
         fig,ax = plt.subplots(1)
         ax.imshow(im, cmap='gray')
-        # Show r1,c1
-        rect = patches.Rectangle((c1,r1),1,1,linewidth=2,edgecolor='r',facecolor='none')
-        ax.add_patch(rect)
+        # differentiate different features
+        edgeColors = ['r', 'b', 'g', 'y', 'c']
+        for i in range(0,len(predictors)):
+            # Show r1,c1
+            pred = predictors[i]
+            rect = patches.Rectangle((pred[1], pred[0]),1,1,linewidth=2,edgecolor=edgeColors[i],facecolor='none')
+            ax.add_patch(rect)
+            # show r2, c2
+            rect = patches.Rectangle((pred[3], pred[2]), 1, 1, linewidth=2, edgecolor=edgeColors[i], facecolor='none')
+            ax.add_patch(rect)
         # Show r2,c2
-        rect = patches.Rectangle((c2,r2),1,1,linewidth=2,edgecolor='b',facecolor='none')
-        ax.add_patch(rect)
+        # rect = patches.Rectangle((c2,r2),1,1,linewidth=2,edgecolor='b',facecolor='none')
+        # ax.add_patch(rect)
         # Display the merged result
         plt.show()
 
@@ -75,8 +84,7 @@ def loadData (which):
 if __name__ == "__main__":
     testingFaces, testingLabels = loadData("test")
     trainingFaces, trainingLabels = loadData("train")
-    stepwiseRegression(trainingFaces, trainingLabels, testingFaces, testingLabels, 200)
-    # TODO remove
-    y = np.array([1,0,0])
-    yhat = np.array([1,1,1])
-    print(fPC(y,yhat))
+
+    # for n in range(400, 2400, 400):
+    #     stepwiseRegression(trainingFaces, trainingLabels, testingFaces, testingLabels, n)
+    stepwiseRegression(trainingFaces, trainingLabels, testingFaces, testingLabels, 2000)
